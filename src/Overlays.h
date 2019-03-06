@@ -69,6 +69,8 @@ public:
   void DrawCredits(sf::RenderWindow& window);
   void DrawLevels(sf::RenderWindow& window);
 
+  bool* getAllHover();
+
 protected:
   void MakeText(const char* str, float x, float y, float size, const sf::Color& color, sf::Text& text, bool mono=false);
   void MakeTime(int t, float x, float y, float size, const sf::Color& color, sf::Text& text);
