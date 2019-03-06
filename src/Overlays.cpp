@@ -250,6 +250,11 @@ void Overlays::DrawLevels(sf::RenderWindow& window) {
   }
 }
 
+bool* Overlays::getAllHover()
+{
+	return all_hover;
+}
+
 void Overlays::MakeText(const char* str, float x, float y, float size, const sf::Color& color, sf::Text& text, bool mono) {
   text.setString(str);
   text.setFont(mono ? *font_mono : *font);
