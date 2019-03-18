@@ -14,9 +14,11 @@
 * You should have received a copy of the GNU General Public License
 * along with this program.If not, see <http://www.gnu.org/licenses/>.
 */
+#pragma once
 #include "Scene.h"
 #include "Scores.h"
 #include "Res.h"
+#include "Marble.h"
 #include <iostream>
 
 static const float pi = 3.14159265359f;
@@ -53,21 +55,15 @@ Scene::Scene(sf::Music* m1, sf::Music* m2) :
   intro_needs_snap(true),
   play_single(false),
   exposure(1.0f),
-  cam_mat(Eigen::Matrix4f::Identity()),
-  cam_look_x(0.0f),
-  cam_look_y(0.0f),
-  cam_dist(default_zoom),
-  cam_pos(0.0f, 0.0f, 0.0f),
-  cam_mode(CamMode::INTRO),
-  marble_rad(1.0f),
-  marble_pos(0.0f, 0.0f, 0.0f),
-  marble_vel(0.0f, 0.0f, 0.0f),
-  marble_mat(Eigen::Matrix3f::Identity()),
+  camera(Camera()),
+  marble(Marble()),
   flag_pos(0.0f, 0.0f, 0.0f),
   timer(0),
+  final_time(0),
   music_1(m1),
   music_2(m2),
   cur_level(0) {
+  camera.SetDistance(default_zoom);
   frac_params.setOnes();
   frac_params_smooth.setOnes();
   SnapCamera();
@@ -85,39 +81,39 @@ Scene::Scene(sf::Music* m1, sf::Music* m2) :
 
 void Scene::LoadLevel(int level) {
   cur_level = level;
-  marble_pos = all_levels[level].start_pos;
-  marble_rad = all_levels[level].marble_rad;
+  marble.SetPosition(all_levels[level].start_pos);
+  marble.SetRadius(all_levels[level].marble_rad);
   flag_pos = all_levels[level].end_pos;
-  cam_look_x = all_levels[level].start_look_x;
+  camera.SetLookX(all_levels[level].start_look_x);
 }
 
 void Scene::SetMarble(float x, float y, float z, float r) {
-  marble_rad = r;
-  marble_pos = Eigen::Vector3f(x, y, z);
-  marble_vel.setZero();
+  marble.SetRadius(r);
+  marble.SetPosition(Eigen::Vector3f(x, y, z));
+  marble.SetVelocity(marble.GetVelocity().setZero());
 }
 
-void Scene::SetFlag(float x, float y, float z) {
+void Scene::SetFlagPosition(float x, float y, float z) {
   flag_pos = Eigen::Vector3f(x, y, z);
 }
 
 void Scene::SetMode(CamMode mode) {
   //Don't reset the timer if transitioning to screen saver
-  if ((cam_mode == INTRO && mode == SCREEN_SAVER) ||
-      (cam_mode == SCREEN_SAVER && mode == INTRO)) {
+  if ((camera.GetMode() == INTRO && mode == SCREEN_SAVER) ||
+      (camera.GetMode() == SCREEN_SAVER && mode == INTRO)) {
   } else {
     timer = 0;
     intro_needs_snap = true;
   }
-  cam_mode = mode;
+  camera.SetMode(mode);
 }
 
 int Scene::GetCountdownTime() const {
-  if (cam_mode == DEORBIT && timer >= frame_deorbit) {
+  if (camera.GetMode() == DEORBIT && timer >= frame_deorbit) {
     return timer - frame_deorbit;
-  } else if (cam_mode == MARBLE) {
+  } else if (camera.GetMode() == MARBLE) {
     return timer + 3*60;
-  } else if (cam_mode == GOAL) {
+  } else if (camera.GetMode() == GOAL) {
     return final_time + 3*60;
   } else {
     return -1;
@@ -125,12 +121,12 @@ int Scene::GetCountdownTime() const {
 }
 
 sf::Vector3f Scene::GetGoalDirection() const {
-  Eigen::Vector3f goal_delta = marble_mat.transpose() * (flag_pos - marble_pos);
+  Eigen::Vector3f goal_delta = (marble.GetMatrix().transpose()) * (flag_pos - marble.GetPosition());
   goal_delta.y() = 0.0f;
   const float goal_dir = std::atan2(-goal_delta.z(), goal_delta.x());
-  const float a = cam_look_x - goal_dir;
-  const float b = std::abs(cam_look_y * 2.0f / pi);
-  const float d = goal_delta.norm() / marble_rad;
+  const float a = camera.GetLookX() - goal_dir;
+  const float b = std::abs(camera.GetLookY() * 2.0f / pi);
+  const float d = goal_delta.norm() / marble.GetRadius();
   return sf::Vector3f(a, b, d);
 }
 
@@ -144,7 +140,7 @@ void Scene::StopAllMusic() {
 }
 
 bool Scene::IsHighScore() const {
-  if (cam_mode != GOAL) {
+  if (camera.GetMode() != GOAL) {
     return false;
   } else {
     return final_time == high_scores.Get(cur_level);
@@ -160,10 +156,10 @@ void Scene::StartNewGame() {
 
 void Scene::StartNextLevel() {
   if (play_single) {
-    cam_mode = MARBLE;
+    camera.SetMode(MARBLE);
     ResetLevel();
   } else if (cur_level + 1 >= num_levels) {
-    cam_mode = FINAL;
+    camera.SetMode(FINAL);
   } else {
     cur_level += 1;
     HideObjects();
@@ -183,116 +179,66 @@ void Scene::StartSingle(int level) {
 }
 
 void Scene::ResetLevel() {
-  if (cam_mode == MARBLE || play_single) {
+  if (camera.GetMode() == MARBLE || play_single) {
     SetMode(DEORBIT);
     timer = frame_deorbit;
     frac_params = all_levels[cur_level].params;
     frac_params_smooth = frac_params;
-    marble_pos = all_levels[cur_level].start_pos;
-    marble_vel.setZero();
-    marble_rad = all_levels[cur_level].marble_rad;
-    marble_mat.setIdentity();
+    marble.SetPosition(all_levels[cur_level].start_pos);
+    marble.SetVelocity(marble.GetVelocity().setZero());
+    marble.SetRadius(all_levels[cur_level].marble_rad);
+    marble.SetMatrix(marble.GetMatrix().setIdentity());
     flag_pos = all_levels[cur_level].end_pos;
-    cam_look_x = all_levels[cur_level].start_look_x;
-    cam_look_x_smooth = cam_look_x;
-    cam_pos = cam_pos_smooth;
-    cam_dist = default_zoom;
-    cam_dist_smooth = cam_dist;
-    cam_look_y = -0.3f;
-    cam_look_y_smooth = cam_look_y;
+    camera.SetLookX(all_levels[cur_level].start_look_x);
+    camera.SetLookXSmooth(camera.GetLookX());
+    camera.SetPosition(camera.GetPositionSmooth());
+    camera.SetDistance(default_zoom);
+    camera.SetDistanceSmooth(camera.GetDistance());
+    camera.SetLookY(-0.3f);
+    camera.SetLookYSmooth(camera.GetLookY());
   }
 }
 
 void Scene::UpdateCamera(float dx, float dy, float dz) {
   //Camera update depends on current mode
-  if (cam_mode == INTRO) {
+  if (camera.GetMode() == INTRO) {
     UpdateIntro(false);
-  } else if (cam_mode == SCREEN_SAVER) {
+  } else if (camera.GetMode() == SCREEN_SAVER) {
     UpdateIntro(true);
-  } else if (cam_mode == ORBIT) {
+  } else if (camera.GetMode() == ORBIT) {
     UpdateOrbit();
-  } else if (cam_mode == DEORBIT) {
+  } else if (camera.GetMode() == DEORBIT) {
     UpdateDeOrbit();
-  } else if (cam_mode == MARBLE) {
+  } else if (camera.GetMode() == MARBLE) {
     UpdateNormal(dx, dy, dz);
-  } else if (cam_mode == GOAL || cam_mode == FINAL) {
+  } else if (camera.GetMode() == GOAL || camera.GetMode() == FINAL) {
     UpdateGoal();
   }
 }
 
 void Scene::UpdateMarble(float dx, float dy) {
   //Ignore other modes
-  if (cam_mode != MARBLE) {
+  if (camera.GetMode() != MARBLE) {
     return;
   }
 
   //Normalize force if too big
-  const float mag2 = dx*dx + dy*dy;
-  if (mag2 > 1.0f) {
-    const float mag = std::sqrt(mag2);
-    dx /= mag;
-    dy /= mag;
-  }
+  NormalizeForce(dx, dy);
 
-  //Apply all physics (gravity and collision)
   bool onGround = false;
   float max_delta_v = 0.0f;
-  for (int i = 0; i < num_phys_steps; ++i) {
-    const float force = marble_rad * gravity / num_phys_steps;
-    if (all_levels[cur_level].planet) {
-      marble_vel -= marble_pos.normalized() * force;
-    } else {
-      marble_vel.y() -= force;
-    }
-    marble_pos += marble_vel / num_phys_steps;
-    onGround |= MarbleCollision(max_delta_v);
-  }
-
-  //Play bounce sound if needed
-  if (max_delta_v > 0.01f) {
-    sound_bounce1.play();
-  } else if (max_delta_v > 0.005f) {
-    sound_bounce2.play();
-  } else if (max_delta_v > 0.002f) {
-    sound_bounce3.setVolume(100.0f * (max_delta_v / 0.005f));
-    sound_bounce3.play();
-  }
-
-  //Add force from keyboard
-  const float f = marble_rad * (onGround ? ground_force : air_force);
-  const float cs = std::cos(cam_look_x);
-  const float sn = std::sin(cam_look_x);
-  Eigen::Vector3f v(dx*cs - dy*sn, 0.0f, -dy*cs - dx*sn);
-  marble_vel += (marble_mat * v) * f;
+  ApplyGravityAndCollision(onGround, max_delta_v);
+  PlayBounceSound(max_delta_v);
+  AddForceFromKeyboard(onGround, dx, dy);
 
   //Apply friction
-  marble_vel *= (onGround ? ground_friction : air_friction);
+  marble.SetVelocity( marble.GetVelocity() * (onGround ? ground_friction : air_friction) );
 
-  //Update animated fractals
-  frac_params[1] = all_levels[cur_level].params[1] + all_levels[cur_level].anim_1 * std::sin(timer * 0.015f);
-  frac_params[2] = all_levels[cur_level].params[2] + all_levels[cur_level].anim_2 * std::sin(timer * 0.015f);
-  frac_params[4] = all_levels[cur_level].params[4] + all_levels[cur_level].anim_3 * std::sin(timer * 0.015f);
-  frac_params_smooth = frac_params;
-
-  //Check if marble has hit flag post
-  if (cam_mode != GOAL) {
-    const bool flag_y_match = all_levels[cur_level].planet ?
-      marble_pos.y() <= flag_pos.y() && marble_pos.y() >= flag_pos.y() - 7*marble_rad :
-      marble_pos.y() >= flag_pos.y() && marble_pos.y() <= flag_pos.y() + 7*marble_rad;
-    if (flag_y_match) {
-      const float fx = marble_pos.x() - flag_pos.x();
-      const float fz = marble_pos.z() - flag_pos.z();
-      if (fx*fx + fz*fz < 6 * marble_rad*marble_rad) {
-        final_time = timer;
-        high_scores.Update(cur_level, final_time);
-        SetMode(GOAL);
-        sound_goal.play();
-      }
-    }
-  }
+  UpdateAnimatedFractals();
+  CheckIfMarbleHasHitFlag();
 
   //Check if marble passed the death barrier
-  if (marble_pos.y() < all_levels[cur_level].kill_y) {
+  if (marble.GetPosition().y() < all_levels[cur_level].kill_y) {
     ResetLevel();
   }
 }
@@ -306,35 +252,28 @@ void Scene::UpdateIntro(bool ssaver) {
   const float dist = (ssaver ? 10.0f : 8.0f);
   const Eigen::Vector3f orbit_pt(0.0f, 3.0f, 0.0f);
   const Eigen::Vector3f perp_vec(std::sin(t), 0.0f, std::cos(t));
-  cam_pos = orbit_pt + perp_vec * dist;
-  cam_pos_smooth = cam_pos_smooth*0.9f + cam_pos*0.1f;
+  camera.SetPosition(orbit_pt + perp_vec * dist);
+  camera.SetPositionSmooth(camera.GetPositionSmooth()*0.9f + camera.GetPosition()*0.1f);
 
   //Solve for the look direction
-  cam_look_x = std::atan2(perp_vec.x(), perp_vec.z());
-  if (!ssaver) { cam_look_x += 0.5f; }
-  ModPi(cam_look_x_smooth, cam_look_x);
-  cam_look_x_smooth = cam_look_x_smooth*0.9f + cam_look_x*0.1f;
+  camera.SetLookX(std::atan2(perp_vec.x(), perp_vec.z()));
+  if (!ssaver) { camera.SetLookX(camera.GetLookX() + 0.5f); }
+  float cam_look_x_smooth = camera.GetLookXSmooth();
+  ModPi(cam_look_x_smooth, camera.GetLookX());
+  camera.SetLookXSmooth(cam_look_x_smooth*0.9f + camera.GetLookX()*0.1f);
 
   //Update look y
-  cam_look_y = (ssaver ? -0.25f : -0.41f);
-  cam_look_y_smooth = cam_look_y_smooth*0.9f + cam_look_y*0.1f;
+  camera.SetLookY(ssaver ? -0.25f : -0.41f);
+  camera.SetLookYSmooth(camera.GetLookYSmooth()*0.9f + camera.GetLookY()*0.1f);
 
   //Update the camera matrix
-  marble_mat.setIdentity();
+  marble.SetMatrix(marble.GetMatrix().setIdentity());
   MakeCameraRotation();
-  cam_mat.block<3, 1>(0, 3) = cam_pos_smooth;
+  Eigen::Matrix4f cam_mat = camera.GetMatrix();
+  cam_mat.block<3, 1>(0, 3) = camera.GetPositionSmooth();
+  camera.SetMatrix(cam_mat);
 
-  //Update demo fractal
-  frac_params[0] = 1.6f;
-  frac_params[1] = 2.0f + 0.5f*std::cos(timer * 0.0021f);
-  frac_params[2] = pi + 0.5f*std::cos(timer * 0.000287f);
-  frac_params[3] = -4.0f + 0.5f*std::sin(timer * 0.00161f);
-  frac_params[4] = -1.0f + 0.1f*std::sin(timer * 0.00123f);
-  frac_params[5] = -1.0f + 0.1f*std::cos(timer * 0.00137f);
-  frac_params[6] = -0.2f;
-  frac_params[7] = -0.1f;
-  frac_params[8] = -0.6f;
-  frac_params_smooth = frac_params;
+  UpdateDemoFractal();
 
   //Make sure marble and flag are hidden
   HideObjects();
@@ -356,22 +295,26 @@ void Scene::UpdateOrbit() {
   const float orbit_dist = all_levels[cur_level].orbit_dist;
   const Eigen::Vector3f orbit_pt(0.0f, orbit_dist, 0.0f);
   const Eigen::Vector3f perp_vec(std::sin(t), 0.0f, std::cos(t));
-  cam_pos = orbit_pt + perp_vec * (orbit_dist * 2.5f);
-  cam_pos_smooth = cam_pos_smooth*orbit_smooth + cam_pos*(1 - orbit_smooth);
+  camera.SetPosition(orbit_pt + perp_vec * (orbit_dist * 2.5f));
+  camera.SetPositionSmooth(camera.GetPositionSmooth()*orbit_smooth + camera.GetPosition()*(1 - orbit_smooth));
   
   //Solve for the look direction
-  cam_look_x = std::atan2(cam_pos_smooth.x(), cam_pos_smooth.z());
-  ModPi(cam_look_x_smooth, cam_look_x);
-  cam_look_x_smooth = cam_look_x_smooth*(1 - a) + cam_look_x*a;
+  camera.SetLookX(std::atan2(camera.GetPositionSmooth().x(), camera.GetPositionSmooth().z()));
+  float aa = camera.GetLookXSmooth();
+  ModPi(aa, camera.GetLookX());
+  camera.SetLookXSmooth(aa);
+  camera.SetLookXSmooth(camera.GetLookXSmooth()*(1 - a) + camera.GetLookX()*a);
   
   //Update look smoothing
-  cam_look_y = -0.3f;
-  cam_look_y_smooth = cam_look_y_smooth*orbit_smooth + cam_look_y*(1 - orbit_smooth);
+  camera.SetLookY(-0.3f);
+  camera.SetLookYSmooth(camera.GetLookYSmooth()*orbit_smooth + camera.GetLookY()*(1 - orbit_smooth));
   
   //Update the camera matrix
-  marble_mat.setIdentity();
+  marble.SetMatrix(marble.GetMatrix().setIdentity());
   MakeCameraRotation();
-  cam_mat.block<3, 1>(0, 3) = cam_pos_smooth;
+  Eigen::Matrix4f cam_mat = camera.GetMatrix();
+  cam_mat.block<3, 1>(0, 3) = camera.GetPositionSmooth();
+  camera.SetMatrix(cam_mat);
 
   //Update fractal parameters
   ModPi(frac_params[1], all_levels[cur_level].params[1]);
@@ -380,19 +323,19 @@ void Scene::UpdateOrbit() {
 
   //When done transitioning display the marble and flag
   if (timer >= frame_transition) {
-    marble_pos = all_levels[cur_level].start_pos;
-    marble_rad = all_levels[cur_level].marble_rad;
+    marble.SetPosition(all_levels[cur_level].start_pos);
+    marble.SetRadius(all_levels[cur_level].marble_rad);
     flag_pos = all_levels[cur_level].end_pos;
   }
 
   //When done transitioning, setup level
   if (timer >= frame_orbit) {
     frac_params = all_levels[cur_level].params;
-    cam_look_x = cam_look_x_smooth;
-    cam_pos = cam_pos_smooth;
-    cam_dist = default_zoom;
-    cam_dist_smooth = cam_dist;
-    cam_mode = DEORBIT;
+    camera.SetLookX(camera.GetLookXSmooth());
+    camera.SetPosition(camera.GetPositionSmooth());
+    camera.SetDistance(default_zoom);
+    camera.SetDistanceSmooth(camera.GetDistance());
+    camera.SetMode(DEORBIT);
   }
 }
 
@@ -408,72 +351,82 @@ void Scene::UpdateDeOrbit() {
   const Eigen::Vector3f orbit_pt(0.0f, orbit_dist, 0.0f);
   const Eigen::Vector3f perp_vec(std::sin(t), 0.0f, std::cos(t));
   const Eigen::Vector3f orbit_cam_pos = orbit_pt + perp_vec * (orbit_dist * 2.5f);
-  cam_pos = cam_pos*orbit_smooth + orbit_cam_pos*(1 - orbit_smooth);
+  camera.SetPosition(camera.GetPosition()*orbit_smooth + orbit_cam_pos*(1 - orbit_smooth));
 
   //Solve for the look direction
   const float start_look_x = all_levels[cur_level].start_look_x;
-  cam_look_x = std::atan2(cam_pos.x(), cam_pos.z());
-  ModPi(cam_look_x, start_look_x);
+  camera.SetLookX(std::atan2(camera.GetPosition().x(), camera.GetPosition().z()));
+  float a = camera.GetLookX();
+  ModPi(a, start_look_x);
+  camera.SetLookX(a);
 
   //Solve for the look direction
-  cam_look_x_smooth = cam_look_x*(1 - b) + start_look_x*b;
+  camera.SetLookXSmooth(camera.GetLookX()*(1 - b) + start_look_x*b);
 
   //Update look smoothing
-  cam_look_y = -0.3f;
-  cam_look_y_smooth = cam_look_y_smooth*orbit_smooth + cam_look_y*(1 - orbit_smooth);
+  camera.SetLookY(-0.3f);
+  camera.SetLookYSmooth(camera.GetLookYSmooth()*orbit_smooth + camera.GetLookY()*(1 - orbit_smooth));
 
   //Update the camera rotation matrix
   MakeCameraRotation();
 
   //Update the camera position
-  Eigen::Vector3f marble_cam_pos = marble_pos + cam_mat.block<3, 3>(0, 0) * Eigen::Vector3f(0.0f, 0.0f, marble_rad * cam_dist_smooth);
-  marble_cam_pos += Eigen::Vector3f(0.0f, marble_rad * cam_dist_smooth * 0.1f, 0.0f);
-  cam_pos_smooth = cam_pos*(1 - b) + marble_cam_pos*b;
-  cam_mat.block<3, 1>(0, 3) = cam_pos_smooth;
+  Eigen::Vector3f marble_cam_pos = marble.GetPosition() + camera.GetMatrix().block<3, 3>(0, 0) * Eigen::Vector3f(0.0f, 0.0f, marble.GetRadius() * camera.GetDistanceSmooth());
+  marble_cam_pos += Eigen::Vector3f(0.0f, marble.GetRadius() * camera.GetDistanceSmooth() * 0.1f, 0.0f);
+  camera.SetPositionSmooth(camera.GetPosition()*(1 - b) + marble_cam_pos*b);
+  Eigen::Matrix4f cam_mat = camera.GetMatrix();
+  cam_mat.block<3, 1>(0, 3) = camera.GetPositionSmooth();
+  camera.SetMatrix(cam_mat);
 
   //When done deorbiting, transition to play
   if (timer > frame_countdown) {
-    cam_mode = MARBLE;
-    cam_look_x = cam_look_x_smooth;
-    cam_look_y = cam_look_y_smooth;
-    cam_pos = cam_pos_smooth;
+    camera.SetMode(MARBLE);
+    camera.SetLookX(camera.GetLookXSmooth());
+    camera.SetLookY(camera.GetLookYSmooth());
+    camera.SetPosition(camera.GetPositionSmooth());
     timer = 0;
   }
 }
 
 void Scene::UpdateNormal(float dx, float dy, float dz) {
   //Update camera zoom
-  cam_dist *= std::pow(2.0f, -dz);
-  cam_dist = std::min(std::max(cam_dist, 5.0f), 30.0f);
-  cam_dist_smooth = cam_dist_smooth*zoom_smooth + cam_dist*(1 - zoom_smooth);
+  camera.SetDistance(camera.GetDistance() * std::pow(2.0f, -dz));
+  camera.SetDistance(std::min(std::max(camera.GetDistance(), 5.0f), 30.0f));
+  camera.SetDistanceSmooth(camera.GetDistanceSmooth()*zoom_smooth + camera.GetDistance()*(1 - zoom_smooth));
 
   //Update look direction
-  cam_look_x += dx;
-  cam_look_y += dy;
-  cam_look_y = std::min(std::max(cam_look_y, -pi/2), pi/2);
-  while (cam_look_x > pi) { cam_look_x -= 2*pi; }
-  while (cam_look_x < -pi) { cam_look_x += 2*pi; }
+  camera.SetLookX(camera.GetLookX() + dx);
+  camera.SetLookY(camera.GetLookY() + dy);
+  camera.SetLookY(std::min(std::max(camera.GetLookY(), -pi/2), pi/2));
+  while (camera.GetLookX() > pi) { camera.SetLookX(camera.GetLookX() - 2*pi); }
+  while (camera.GetLookX() < -pi) { camera.SetLookX(camera.GetLookX() + 2*pi); }
 
   //Update look smoothing
-  ModPi(cam_look_x_smooth, cam_look_x);
-  cam_look_x_smooth = cam_look_x_smooth*look_smooth + cam_look_x*(1 - look_smooth);
-  cam_look_y_smooth = cam_look_y_smooth*look_smooth + cam_look_y*(1 - look_smooth);
+  float cam_look_x_smooth = camera.GetLookXSmooth();
+  ModPi(cam_look_x_smooth, camera.GetLookX());
+  cam_look_x_smooth = cam_look_x_smooth*look_smooth + camera.GetLookX()*(1 - look_smooth);
+  camera.SetLookXSmooth(cam_look_x_smooth);
+  camera.SetLookYSmooth(camera.GetLookYSmooth()*look_smooth + camera.GetLookY()*(1 - look_smooth));
 
   //Setup rotation matrix for planets
   if (all_levels[cur_level].planet) {
-    marble_mat.col(1) = marble_pos.normalized();
-    marble_mat.col(2) = -marble_mat.col(1).cross(marble_mat.col(0)).normalized();
-    marble_mat.col(0) = -marble_mat.col(2).cross(marble_mat.col(1)).normalized();
+    Eigen::Matrix3f matrix = marble.GetMatrix();
+    matrix.col(1) = marble.GetPosition().normalized();
+    matrix.col(2) = -marble.GetMatrix().col(1).cross(marble.GetMatrix().col(0)).normalized();
+    matrix.col(0) = -marble.GetMatrix().col(2).cross(marble.GetMatrix().col(1)).normalized();
+    marble.SetMatrix(matrix);
   } else {
-    marble_mat.setIdentity();
+    marble.SetMatrix(marble.GetMatrix().setIdentity());
   }
 
   //Update the camera matrix
   MakeCameraRotation();
-  cam_pos = marble_pos + cam_mat.block<3, 3>(0, 0) * Eigen::Vector3f(0.0f, 0.0f, marble_rad * cam_dist_smooth);
-  cam_pos += marble_mat.col(1) * (marble_rad * cam_dist_smooth * 0.1f);
-  cam_pos_smooth = cam_pos;
-  cam_mat.block<3, 1>(0, 3) = cam_pos_smooth;
+  camera.SetPosition(marble.GetPosition() + camera.GetMatrix().block<3, 3>(0, 0) * Eigen::Vector3f(0.0f, 0.0f, marble.GetRadius() * camera.GetDistanceSmooth()));
+  camera.SetPosition(camera.GetPosition() + (marble.GetMatrix().col(1) * (marble.GetRadius() * camera.GetDistanceSmooth() * 0.1f)));
+  camera.SetPositionSmooth(camera.GetPosition());
+  Eigen::Matrix4f cam_mat = camera.GetMatrix();
+  cam_mat.block<3, 1>(0, 3) = camera.GetPositionSmooth();
+  camera.SetMatrix(cam_mat);
 
   //Update timer
   timer += 1;
@@ -486,64 +439,70 @@ void Scene::UpdateGoal() {
   timer += 1;
 
   //Get marble location and rotational parameters
-  const float flag_dist = marble_rad * 6.5f;
-  const Eigen::Vector3f orbit_pt = flag_pos + marble_mat * Eigen::Vector3f(0.0f, flag_dist, 0.0f);
+  const float flag_dist = marble.GetRadius() * 6.5f;
+  const Eigen::Vector3f orbit_pt = flag_pos + marble.GetMatrix() * Eigen::Vector3f(0.0f, flag_dist, 0.0f);
   const Eigen::Vector3f perp_vec = Eigen::Vector3f(std::sin(t), 0.0f, std::cos(t));
-  cam_pos = orbit_pt + marble_mat * perp_vec * (flag_dist * 3.5f);
-  cam_pos_smooth = cam_pos_smooth*(1 - a) + cam_pos*a;
+  camera.SetPosition(orbit_pt + marble.GetMatrix() * perp_vec * (flag_dist * 3.5f));
+  camera.SetPositionSmooth(camera.GetPositionSmooth()*(1 - a) + camera.GetPosition()*a);
 
   //Solve for the look direction
-  cam_look_x = std::atan2(perp_vec.x(), perp_vec.z());
-  ModPi(cam_look_x_smooth, cam_look_x);
-  cam_look_x_smooth = cam_look_x_smooth*(1 - a) + cam_look_x*a;
+  camera.SetLookX(std::atan2(perp_vec.x(), perp_vec.z()));
+  float cam_look_x_smooth = camera.GetLookXSmooth();
+  ModPi(cam_look_x_smooth, camera.GetLookX());
+  cam_look_x_smooth = cam_look_x_smooth*(1 - a) + camera.GetLookX()*a;
+  camera.SetLookXSmooth(cam_look_x_smooth);
 
   //Update look smoothing
-  cam_look_y = -0.25f;
-  cam_look_y_smooth = cam_look_y_smooth*0.99f + cam_look_y*(1 - 0.99f);
+  camera.SetLookY(-0.25f);
+  camera.SetLookYSmooth(camera.GetLookYSmooth()*0.99f + camera.GetLookY()*(1 - 0.99f));
 
   //Update the camera matrix
   MakeCameraRotation();
-  cam_mat.block<3, 1>(0, 3) = cam_pos_smooth;
+  Eigen::Matrix4f cam_mat = camera.GetMatrix();
+  cam_mat.block<3, 1>(0, 3) = camera.GetPositionSmooth();
+  camera.SetMatrix(cam_mat);
 
   //Animate marble
-  marble_vel += (orbit_pt - marble_pos) * 0.005f;
-  marble_pos += marble_vel;
-  if (marble_vel.norm() > marble_rad*0.02f) {
-    marble_vel *= 0.95f;
+  marble.SetVelocity(marble.GetVelocity() + ((orbit_pt - marble.GetPosition()) * 0.005f) );
+  marble.SetPosition(marble.GetPosition() + marble.GetVelocity());
+  if (marble.GetVelocity().norm() > marble.GetRadius()*0.02f) {
+    marble.SetVelocity(marble.GetVelocity() * 0.95f);
   }
 
-  if (timer > 300 && cam_mode != FINAL) {
+  if (timer > 300 && camera.GetMode() != FINAL) {
     StartNextLevel();
   }
 }
 
 void Scene::MakeCameraRotation() {
-  cam_mat.setIdentity();
-  const Eigen::AngleAxisf aa_x_smooth(cam_look_x_smooth, Eigen::Vector3f::UnitY());
-  const Eigen::AngleAxisf aa_y_smooth(cam_look_y_smooth, Eigen::Vector3f::UnitX());
-  cam_mat.block<3, 3>(0, 0) = marble_mat * (aa_x_smooth * aa_y_smooth).toRotationMatrix();
+  camera.SetMatrix(camera.GetMatrix().setIdentity());
+  const Eigen::AngleAxisf aa_x_smooth(camera.GetLookXSmooth(), Eigen::Vector3f::UnitY());
+  const Eigen::AngleAxisf aa_y_smooth(camera.GetLookYSmooth(), Eigen::Vector3f::UnitX());
+  Eigen::Matrix4f cam_mat = camera.GetMatrix();
+  cam_mat.block<3, 3>(0, 0) = (marble.GetMatrix()) * (aa_x_smooth * aa_y_smooth).toRotationMatrix();
+  camera.SetMatrix(cam_mat);
 }
 
 void Scene::SnapCamera() {
-  cam_look_x_smooth = cam_look_x;
-  cam_look_y_smooth = cam_look_y;
-  cam_dist_smooth = cam_dist;
-  cam_pos_smooth = cam_pos;
+  camera.SetLookXSmooth(camera.GetLookX());
+  camera.SetLookYSmooth(camera.GetLookY());
+  camera.SetDistanceSmooth(camera.GetDistance());
+  camera.SetPositionSmooth(camera.GetPosition());
 }
 
 void Scene::HideObjects() {
-  marble_pos = Eigen::Vector3f(999.0f, 999.0f, 999.0f);
+  marble.SetPosition(Eigen::Vector3f(999.0f, 999.0f, 999.0f));
   flag_pos = Eigen::Vector3f(999.0f, 999.0f, 999.0f);
-  marble_vel.setZero();
+  marble.SetVelocity(marble.GetVelocity().setZero());
 }
 
 void Scene::Write(sf::Shader& shader) const {
-  shader.setUniform("iMat", sf::Glsl::Mat4(cam_mat.data()));
+  shader.setUniform("iMat", sf::Glsl::Mat4(camera.GetMatrix().data()));
 
-  shader.setUniform("iMarblePos", sf::Glsl::Vec3(marble_pos.x(), marble_pos.y(), marble_pos.z()));
-  shader.setUniform("iMarbleRad", marble_rad);
+  shader.setUniform("iMarblePos", sf::Glsl::Vec3(marble.GetPosition().x(), marble.GetPosition().y(), marble.GetPosition().z()));
+  shader.setUniform("iMarbleRad", marble.GetRadius());
 
-  shader.setUniform("iFlagScale", all_levels[cur_level].planet ? -marble_rad : marble_rad);
+  shader.setUniform("iFlagScale", all_levels[cur_level].planet ? -marble.GetRadius() : marble.GetRadius());
   shader.setUniform("iFlagPos", sf::Glsl::Vec3(flag_pos.x(), flag_pos.y(), flag_pos.z()));
 
   shader.setUniform("iFracScale", frac_params_smooth[0]);
@@ -686,27 +645,120 @@ Eigen::Vector3f Scene::NP(const Eigen::Vector3f& pt) const {
 
 bool Scene::MarbleCollision(float& delta_v) {
   //Check if the distance estimate indicates a collision
-  const float de = DE(marble_pos);
-  if (de >= marble_rad) {
-    return de < marble_rad * ground_ratio;
+  const float de = DE(marble.GetPosition());
+  if (de >= marble.GetRadius()) {
+    return de < marble.GetRadius() * ground_ratio;
   }
   
   //Check if the marble has been crushed by the fractal
-  if (de < marble_rad * 0.001f) {
+  if (de < marble.GetRadius() * 0.001f) {
     sound_shatter.play();
-    marble_pos.y() = -9999.0f;
+    Eigen::Vector3f pos = marble.GetPosition();
+    pos.y() = -9999.0f;
+    marble.SetPosition(pos);
     return false;
   }
 
   //Find the nearest point and compute offset
-  const Eigen::Vector3f np = NP(marble_pos);
-  const Eigen::Vector3f d = np - marble_pos;
+  const Eigen::Vector3f np = NP(marble.GetPosition());
+  const Eigen::Vector3f d = np - marble.GetPosition();
   const Eigen::Vector3f dn = d.normalized();
 
   //Apply the offset to the marble's position and velocity
-  const float dv = marble_vel.dot(dn);
+  const float dv = marble.GetVelocity().dot(dn);
   delta_v = std::max(delta_v, dv);
-  marble_pos -= dn * marble_rad - d;
-  marble_vel -= dn * (dv * marble_bounce);
+  marble.SetPosition(marble.GetPosition() - (dn * marble.GetRadius() - d) );
+  marble.SetVelocity(marble.GetVelocity() - (dn * (dv * marble_bounce)) );
   return true;
+}
+
+void Scene::CheckIfMarbleHasHitFlag()
+{
+	if (camera.GetMode() != GOAL) {
+		const bool flag_y_match = all_levels[cur_level].planet ?
+			marble.GetPosition().y() <= flag_pos.y() && marble.GetPosition().y() >= flag_pos.y() - 7 * marble.GetRadius() :
+			marble.GetPosition().y() >= flag_pos.y() && marble.GetPosition().y() <= flag_pos.y() + 7 * marble.GetRadius();
+		if (flag_y_match) {
+			const float fx = marble.GetPosition().x() - flag_pos.x();
+			const float fz = marble.GetPosition().z() - flag_pos.z();
+			if (fx*fx + fz * fz < 6 * marble.GetRadius()*marble.GetRadius()) {
+				final_time = timer;
+				high_scores.Update(cur_level, final_time);
+				SetMode(GOAL);
+				sound_goal.play();
+			}
+		}
+	}
+}
+
+void Scene::UpdateAnimatedFractals()
+{
+	frac_params[1] = all_levels[cur_level].params[1] + all_levels[cur_level].anim_1 * std::sin(timer * 0.015f);
+	frac_params[2] = all_levels[cur_level].params[2] + all_levels[cur_level].anim_2 * std::sin(timer * 0.015f);
+	frac_params[4] = all_levels[cur_level].params[4] + all_levels[cur_level].anim_3 * std::sin(timer * 0.015f);
+	frac_params_smooth = frac_params;
+}
+
+void Scene::AddForceFromKeyboard(bool onGround, float dx, float dy)
+{
+	const float f = marble.GetRadius() * (onGround ? ground_force : air_force);
+	const float cs = std::cos(camera.GetLookX());
+	const float sn = std::sin(camera.GetLookX());
+	Eigen::Vector3f v(dx*cs - dy * sn, 0.0f, -dy * cs - dx * sn);
+	marble.SetVelocity(marble.GetVelocity() + ((marble.GetMatrix() * v) * f));
+}
+
+void Scene::PlayBounceSound(float max_delta_v)
+{
+	if (max_delta_v > 0.01f) {
+		sound_bounce1.play();
+	}
+	else if (max_delta_v > 0.005f) {
+		sound_bounce2.play();
+	}
+	else if (max_delta_v > 0.002f) {
+		sound_bounce3.setVolume(100.0f * (max_delta_v / 0.005f));
+		sound_bounce3.play();
+	}
+}
+
+void Scene::ApplyGravityAndCollision(bool &onGround, float &max_delta_v)
+{
+	for (int i = 0; i < num_phys_steps; ++i) {
+		const float force = marble.GetRadius() * gravity / num_phys_steps;
+		if (all_levels[cur_level].planet) {
+			marble.SetVelocity(marble.GetVelocity() - (marble.GetPosition().normalized() * force));
+		}
+		else {
+			Eigen::Vector3f vel = marble.GetVelocity();
+			vel.y() -= force;
+			marble.SetVelocity(vel);
+		}
+		marble.SetPosition(marble.GetPosition() + (marble.GetVelocity() / num_phys_steps));
+		onGround |= MarbleCollision(max_delta_v);
+	}
+}
+
+void Scene::NormalizeForce(float &dx, float &dy)
+{
+	const float mag2 = dx * dx + dy * dy;
+	if (mag2 > 1.0f) {
+		const float mag = std::sqrt(mag2);
+		dx /= mag;
+		dy /= mag;
+	}
+}
+
+void Scene::UpdateDemoFractal()
+{
+	frac_params[0] = 1.6f;
+	frac_params[1] = 2.0f + 0.5f*std::cos(timer * 0.0021f);
+	frac_params[2] = pi + 0.5f*std::cos(timer * 0.000287f);
+	frac_params[3] = -4.0f + 0.5f*std::sin(timer * 0.00161f);
+	frac_params[4] = -1.0f + 0.1f*std::sin(timer * 0.00123f);
+	frac_params[5] = -1.0f + 0.1f*std::cos(timer * 0.00137f);
+	frac_params[6] = -0.2f;
+	frac_params[7] = -0.1f;
+	frac_params[8] = -0.6f;
+	frac_params_smooth = frac_params;
 }

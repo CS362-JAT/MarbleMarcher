@@ -16,38 +16,40 @@
 */
 #pragma once
 #include "Level.h"
+#include "Marble.h"
+#include "Camera.h"
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 #include <Eigen/Dense>
 
 class Scene {
 public:
-  enum CamMode {
-    INTRO,
-    SCREEN_SAVER,
-    ORBIT,
-    DEORBIT,
-    MARBLE,
-    GOAL,
-    FINAL,
-  };
-
+  
   Scene(sf::Music* m1, sf::Music* m2);
 
   void LoadLevel(int level);
   void SetMarble(float x, float y, float z, float r);
-  void SetFlag(float x, float y, float z);
+  void SetFlagPosition(float x, float y, float z);
   void SetMode(CamMode mode);
   void SetExposure(float e) { exposure = e; }
+  void SetTimer(int t) { timer = t; }
+  void SetSinglePlay(bool b) { play_single = b; }
+  void SetLevel(int level) { cur_level = level; }
 
-  const Eigen::Vector3f& GetMarble() const { return marble_pos; };
-  float GetCamLook() const { return cam_look_x_smooth; }
-  CamMode GetMode() const { return cam_mode; }
+  const Marble GetMarble() const { return marble; }
+  Eigen::Vector3f GetFlagPosition() const { return flag_pos; }
+  float GetCamLook() const { return camera.GetLookXSmooth(); }
+  float GetCamLookX() const { return camera.GetLookX(); }
+  CamMode GetMode() const { return camera.GetMode(); }
+  int GetTimer() const { return timer; }
   int GetLevel() const { return cur_level; }
   int GetCountdownTime() const;
   sf::Vector3f GetGoalDirection() const;
+  float GetExposure() { return exposure; }
   bool IsSinglePlay() const { return play_single; }
   bool IsHighScore() const;
+  int GetCurLevel() const { return cur_level; }
+  Camera GetCamera() const { return camera; }
 
   sf::Music& GetCurMusic() const;
   void StopAllMusic();
@@ -69,6 +71,14 @@ public:
   Eigen::Vector3f NP(const Eigen::Vector3f& pt) const;
   bool MarbleCollision(float& delta_v);
 
+  void CheckIfMarbleHasHitFlag();
+  void UpdateAnimatedFractals();
+  void AddForceFromKeyboard(bool onGround, float dx, float dy);
+  void PlayBounceSound(float max_delta_v);
+  void ApplyGravityAndCollision(bool &onGround, float &max_delta_v);
+  void NormalizeForce(float &dx, float &dy);
+  void UpdateDemoFractal();
+
 protected:
   void UpdateIntro(bool ssaver);
   void UpdateOrbit();
@@ -82,22 +92,9 @@ private:
   bool            intro_needs_snap;
   bool            play_single;
 
-  Eigen::Matrix4f cam_mat;
-  float           cam_look_x;
-  float           cam_look_y;
-  float           cam_dist;
-  Eigen::Vector3f cam_pos;
-  CamMode         cam_mode;
+  Camera          camera;
 
-  float           cam_look_x_smooth;
-  float           cam_look_y_smooth;
-  float           cam_dist_smooth;
-  Eigen::Vector3f cam_pos_smooth;
-
-  float           marble_rad;
-  Eigen::Vector3f marble_pos;
-  Eigen::Vector3f marble_vel;
-  Eigen::Matrix3f marble_mat;
+  Marble          marble;
 
   Eigen::Vector3f flag_pos;
 
