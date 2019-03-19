@@ -1,29 +1,18 @@
 #pragma once
 
-enum CamMode {
-    INTRO,
-    SCREEN_SAVER,
-    ORBIT,
-    DEORBIT,
-    MARBLE,
-    GOAL,
-    FINAL,
-    };
-
 class Camera {
-private:
-    Eigen::Matrix4f cam_mat;
-    float           cam_look_x;
-    float           cam_look_y;
-    float           cam_dist;
-    Eigen::Vector3f cam_pos;
-    CamMode         cam_mode;
-    float           cam_look_x_smooth;
-    float           cam_look_y_smooth;
-    float           cam_dist_smooth;
-    Eigen::Vector3f cam_pos_smooth;
 
 public:
+
+	enum CamMode {
+	    INTRO,
+	    SCREEN_SAVER,
+	    ORBIT,
+	    DEORBIT,
+	    MARBLE,
+	    GOAL,
+	    FINAL,
+	    };
     
     Camera() : 
         cam_mat(Eigen::Matrix4f::Identity()),
@@ -55,5 +44,17 @@ public:
     float GetLookYSmooth() const { return cam_look_y_smooth; }
     float GetDistanceSmooth() const { return cam_dist_smooth; }
     Eigen::Vector3f GetPositionSmooth() const { return cam_pos_smooth; }
+
+private:
+    Eigen::Matrix4f cam_mat;
+    float           cam_look_x;
+    float           cam_look_y;
+    float           cam_dist;
+    Eigen::Vector3f cam_pos;
+    CamMode         cam_mode;
+    float           cam_look_x_smooth;
+    float           cam_look_y_smooth;
+    float           cam_dist_smooth;
+    Eigen::Vector3f cam_pos_smooth;
 
 };

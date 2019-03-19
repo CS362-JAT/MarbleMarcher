@@ -17,7 +17,7 @@
 #include "SelectRes.h"
 #include "Res.h"
 
-const Resolution all_resolutions[num_resolutions] = {
+Resolution all_resolutions[num_resolutions] = {
   Resolution(320, 180, "I have potato?"),
   Resolution(640, 360, "GTX 960 or lower:"),
   Resolution(960, 540, "GTX 970 or similar:"),
@@ -48,7 +48,7 @@ void SelectRes::Draw(sf::RenderWindow& window, const sf::Vector2i& mouse_pos) {
   const int sel_ix = Select(mouse_pos);
   window.draw(MakeText("Select Resolution", 320.0f, 26.0f, 48));
   for (int i = 0; i < num_resolutions; ++i) {
-    const Resolution& res = all_resolutions[i];
+    Resolution& res = all_resolutions[i];
     const float y = 90.0f + float(i)*60.0f;
     const bool is_sel = (i == sel_ix);
     window.draw(MakeText(res.info, 20.0f, y + 5.0f, 32, is_sel, false));
@@ -74,7 +74,7 @@ sf::Text SelectRes::MakeText(const char* str, float x, float y, int size, bool s
   return text;
 }
 
-const Resolution* SelectRes::Run() {
+Resolution* SelectRes::Run() {
   //Create the window
   sf::VideoMode window_size(640, 600, 24);
   sf::RenderWindow window(window_size, "Marble Marcher", sf::Style::Close);
@@ -82,7 +82,7 @@ const Resolution* SelectRes::Run() {
   window.requestFocus();
 
   sf::Vector2i mouse_pos;
-  const Resolution* res = nullptr;
+  Resolution* res = nullptr;
   int prev_ix = -1;
   while (window.isOpen()) {
     sf::Event event;

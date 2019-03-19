@@ -30,7 +30,7 @@ public:
   void LoadLevel(int level);
   void SetMarble(float x, float y, float z, float r);
   void SetFlagPosition(float x, float y, float z);
-  void SetMode(CamMode mode);
+  void SetMode(Camera::CamMode mode);
   void SetExposure(float e) { exposure = e; }
   void SetTimer(int t) { timer = t; }
   void SetSinglePlay(bool b) { play_single = b; }
@@ -40,7 +40,7 @@ public:
   Eigen::Vector3f GetFlagPosition() const { return flag_pos; }
   float GetCamLook() const { return camera.GetLookXSmooth(); }
   float GetCamLookX() const { return camera.GetLookX(); }
-  CamMode GetMode() const { return camera.GetMode(); }
+  Camera::CamMode GetMode() const { return camera.GetMode(); }
   int GetTimer() const { return timer; }
   int GetLevel() const { return cur_level; }
   int GetCountdownTime() const;

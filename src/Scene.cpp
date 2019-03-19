@@ -97,10 +97,10 @@ void Scene::SetFlagPosition(float x, float y, float z) {
   flag_pos = Eigen::Vector3f(x, y, z);
 }
 
-void Scene::SetMode(CamMode mode) {
+void Scene::SetMode(Camera::CamMode mode) {
   //Don't reset the timer if transitioning to screen saver
-  if ((camera.GetMode() == INTRO && mode == SCREEN_SAVER) ||
-      (camera.GetMode() == SCREEN_SAVER && mode == INTRO)) {
+  if ((camera.GetMode() == Camera::INTRO && mode == Camera::SCREEN_SAVER) ||
+      (camera.GetMode() == Camera::SCREEN_SAVER && mode == Camera::INTRO)) {
   } else {
     timer = 0;
     intro_needs_snap = true;
@@ -109,11 +109,11 @@ void Scene::SetMode(CamMode mode) {
 }
 
 int Scene::GetCountdownTime() const {
-  if (camera.GetMode() == DEORBIT && timer >= frame_deorbit) {
+  if (camera.GetMode() == Camera::DEORBIT && timer >= frame_deorbit) {
     return timer - frame_deorbit;
-  } else if (camera.GetMode() == MARBLE) {
+  } else if (camera.GetMode() == Camera::MARBLE) {
     return timer + 3*60;
-  } else if (camera.GetMode() == GOAL) {
+  } else if (camera.GetMode() == Camera::GOAL) {
     return final_time + 3*60;
   } else {
     return -1;
@@ -140,7 +140,7 @@ void Scene::StopAllMusic() {
 }
 
 bool Scene::IsHighScore() const {
-  if (camera.GetMode() != GOAL) {
+  if (camera.GetMode() != Camera::GOAL) {
     return false;
   } else {
     return final_time == high_scores.Get(cur_level);
@@ -151,19 +151,19 @@ void Scene::StartNewGame() {
   play_single = false;
   cur_level = high_scores.GetStartLevel();
   HideObjects();
-  SetMode(ORBIT);
+  SetMode(Camera::ORBIT);
 }
 
 void Scene::StartNextLevel() {
   if (play_single) {
-    camera.SetMode(MARBLE);
+    camera.SetMode(Camera::MARBLE);
     ResetLevel();
   } else if (cur_level + 1 >= num_levels) {
-    camera.SetMode(FINAL);
+    camera.SetMode(Camera::FINAL);
   } else {
     cur_level += 1;
     HideObjects();
-    SetMode(ORBIT);
+    SetMode(Camera::ORBIT);
     if (cur_level == mus_switch_lev) {
       music_1->stop();
       music_2->play();
@@ -175,12 +175,12 @@ void Scene::StartSingle(int level) {
   play_single = true;
   cur_level = level;
   HideObjects();
-  SetMode(ORBIT);
+  SetMode(Camera::ORBIT);
 }
 
 void Scene::ResetLevel() {
-  if (camera.GetMode() == MARBLE || play_single) {
-    SetMode(DEORBIT);
+  if (camera.GetMode() == Camera::MARBLE || play_single) {
+    SetMode(Camera::DEORBIT);
     timer = frame_deorbit;
     frac_params = all_levels[cur_level].params;
     frac_params_smooth = frac_params;
@@ -201,24 +201,24 @@ void Scene::ResetLevel() {
 
 void Scene::UpdateCamera(float dx, float dy, float dz) {
   //Camera update depends on current mode
-  if (camera.GetMode() == INTRO) {
+  if (camera.GetMode() == Camera::INTRO) {
     UpdateIntro(false);
-  } else if (camera.GetMode() == SCREEN_SAVER) {
+  } else if (camera.GetMode() == Camera::SCREEN_SAVER) {
     UpdateIntro(true);
-  } else if (camera.GetMode() == ORBIT) {
+  } else if (camera.GetMode() == Camera::ORBIT) {
     UpdateOrbit();
-  } else if (camera.GetMode() == DEORBIT) {
+  } else if (camera.GetMode() == Camera::DEORBIT) {
     UpdateDeOrbit();
-  } else if (camera.GetMode() == MARBLE) {
+  } else if (camera.GetMode() == Camera::MARBLE) {
     UpdateNormal(dx, dy, dz);
-  } else if (camera.GetMode() == GOAL || camera.GetMode() == FINAL) {
+  } else if (camera.GetMode() == Camera::GOAL || camera.GetMode() == Camera::FINAL) {
     UpdateGoal();
   }
 }
 
 void Scene::UpdateMarble(float dx, float dy) {
   //Ignore other modes
-  if (camera.GetMode() != MARBLE) {
+  if (camera.GetMode() != Camera::MARBLE) {
     return;
   }
 
@@ -335,7 +335,7 @@ void Scene::UpdateOrbit() {
     camera.SetPosition(camera.GetPositionSmooth());
     camera.SetDistance(default_zoom);
     camera.SetDistanceSmooth(camera.GetDistance());
-    camera.SetMode(DEORBIT);
+    camera.SetMode(Camera::DEORBIT);
   }
 }
 
@@ -380,7 +380,7 @@ void Scene::UpdateDeOrbit() {
 
   //When done deorbiting, transition to play
   if (timer > frame_countdown) {
-    camera.SetMode(MARBLE);
+    camera.SetMode(Camera::MARBLE);
     camera.SetLookX(camera.GetLookXSmooth());
     camera.SetLookY(camera.GetLookYSmooth());
     camera.SetPosition(camera.GetPositionSmooth());
@@ -469,7 +469,7 @@ void Scene::UpdateGoal() {
     marble.SetVelocity(marble.GetVelocity() * 0.95f);
   }
 
-  if (timer > 300 && camera.GetMode() != FINAL) {
+  if (timer > 300 && camera.GetMode() != Camera::FINAL) {
     StartNextLevel();
   }
 }
@@ -674,7 +674,7 @@ bool Scene::MarbleCollision(float& delta_v) {
 
 void Scene::CheckIfMarbleHasHitFlag()
 {
-	if (camera.GetMode() != GOAL) {
+	if (camera.GetMode() != Camera::GOAL) {
 		const bool flag_y_match = all_levels[cur_level].planet ?
 			marble.GetPosition().y() <= flag_pos.y() && marble.GetPosition().y() >= flag_pos.y() - 7 * marble.GetRadius() :
 			marble.GetPosition().y() >= flag_pos.y() && marble.GetPosition().y() <= flag_pos.y() + 7 * marble.GetRadius();
@@ -684,7 +684,7 @@ void Scene::CheckIfMarbleHasHitFlag()
 			if (fx*fx + fz * fz < 6 * marble.GetRadius()*marble.GetRadius()) {
 				final_time = timer;
 				high_scores.Update(cur_level, final_time);
-				SetMode(GOAL);
+				SetMode(Camera::GOAL);
 				sound_goal.play();
 			}
 		}

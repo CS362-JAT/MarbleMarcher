@@ -1,4 +1,6 @@
 add_library(MarbleMarcherSources
+  Game.cpp
+  Game.h
   Level.cpp
   Level.h
   Overlays.cpp
