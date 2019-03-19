@@ -19,9 +19,13 @@
 #include "Res.h"
 #include "Scores.h"
 
-static const float pi = 3.14159265359f;
 int mouse_setting = 0;
 bool music_on = true;
+
+Overlays::Overlays()
+{
+
+}
 
 Overlays::Overlays(const sf::Font* _font, const sf::Font* _font_mono) :
   font(_font),
@@ -55,13 +59,36 @@ Overlays::Texts Overlays::GetOption(Texts from, Texts to) {
 
 void Overlays::UpdateMenu(float mouse_x, float mouse_y) {
   //Update text boxes
-  MakeText("Marble\nMarcher", 60, 20, 72, sf::Color::White, all_text[TITLE]);
-  MakeText("Play", 80, 230, 60, sf::Color::White, all_text[PLAY]);
-  MakeText("Levels", 80, 300, 60, sf::Color::White, all_text[LEVELS]);
-  MakeText("Controls", 80, 370, 60, sf::Color::White, all_text[CONTROLS]);
-  MakeText("Screen Saver", 80, 440, 60, sf::Color::White, all_text[SCREEN_SAVER]);
-  MakeText("Exit", 80, 510, 60, sf::Color::White, all_text[EXIT]);
-  MakeText("\xA9""2019 CodeParade\nMusic by PettyTheft", 16, 652, 32, sf::Color::White, all_text[CREDITS], true);
+  struct TextCharacteristics textInfo;
+  textInfo.str = "Marble\nMarcher";
+  textInfo.x = 60;
+  textInfo.y = 20;
+  textInfo.size = 72;
+  textInfo.mono = false;
+  MakeText(textInfo, sf::Color::White, all_text[TITLE]);
+  textInfo.str = "Play";
+  textInfo.x = 80;
+  textInfo.y = 230;
+  textInfo.size = 60;
+  MakeText(textInfo, sf::Color::White, all_text[PLAY]);
+  textInfo.str = "Levels";
+  textInfo.y = 300;
+  MakeText(textInfo, sf::Color::White, all_text[LEVELS]);
+  textInfo.str = "Controls";
+  textInfo.y = 370;
+  MakeText(textInfo, sf::Color::White, all_text[CONTROLS]);
+  textInfo.str = "Screen Saver";
+  textInfo.y = 440;
+  MakeText(textInfo, sf::Color::White, all_text[SCREEN_SAVER]);
+  textInfo.str = "Exit";
+  textInfo.y = 510;
+  MakeText(textInfo, sf::Color::White, all_text[EXIT]);
+  textInfo.str = "\xA9""2019 CodeParade\nMusic by PettyTheft";
+  textInfo.x = 16;
+  textInfo.y = 652;
+  textInfo.size = 32;
+  textInfo.mono = true;
+  MakeText(textInfo, sf::Color::White, all_text[CREDITS]);
   all_text[TITLE].setLineSpacing(0.76f);
   all_text[CREDITS].setLineSpacing(0.9f);
 
@@ -71,9 +98,21 @@ void Overlays::UpdateMenu(float mouse_x, float mouse_y) {
 
 void Overlays::UpdateControls(float mouse_x, float mouse_y) {
   //Update text boxes
-  MakeText("Roll\nCamera\nZoom\nRestart\nPause", 40, 200, 46, sf::Color::White, all_text[CONTROLS_L]);
-  MakeText("WASD or Arrows\nMouse\nScroll Wheel\nR or Right-Click\nEsc", 280, 200, 46, sf::Color::White, all_text[CONTROLS_R]);
-  MakeText("Back", 60, 550, 40, sf::Color::White, all_text[BACK]);
+  struct TextCharacteristics textInfo;
+  textInfo.str = "Roll\nCamera\nZoom\nRestart\nPause";
+  textInfo.x = 40;
+  textInfo.y = 200;
+  textInfo.size = 46;
+  textInfo.mono = false;
+  MakeText(textInfo, sf::Color::White, all_text[CONTROLS_L]);
+  textInfo.str = "WASD or Arrows\nMouse\nScroll Wheel\nR or Right-Click\nEsc";
+  textInfo.x = 280;
+  MakeText(textInfo, sf::Color::White, all_text[CONTROLS_R]);
+  textInfo.str = "Back";
+  textInfo.x = 60;
+  textInfo.y = 550;
+  textInfo.size = 40;
+  MakeText(textInfo, sf::Color::White, all_text[BACK]);
 
   //A little extra vertical spacing
   all_text[CONTROLS_L].setLineSpacing(1.1f);
@@ -85,15 +124,25 @@ void Overlays::UpdateControls(float mouse_x, float mouse_y) {
 
 void Overlays::UpdateLevels(float mouse_x, float mouse_y) {
   //Update text boxes
+  struct TextCharacteristics textInfo;
+  textInfo.str = "Back";
+  textInfo.x = 590;
+  textInfo.y = 660;
+  textInfo.size = 40;
+  textInfo.mono = false;
   for (int i = 0; i < num_levels; ++i) {
     const float y = 80.0f + float(i/3) * 120.0f;
     const float x = 240.0f + float(i%3) * 400.0f;
     const char* txt = high_scores.HasUnlocked(i) ? all_levels[i].txt : "???";
-    MakeText(txt, x, y, 32, sf::Color::White, all_text[i + L0]);
+	textInfo.str = txt;
+	textInfo.x = x;
+	textInfo.y = y;
+	textInfo.size = 32;
+    MakeText(textInfo, sf::Color::White, all_text[i + L0]);
     const sf::FloatRect text_bounds = all_text[i + L0].getLocalBounds();
     all_text[i + L0].setOrigin(text_bounds.width / 2, text_bounds.height / 2);
   }
-  MakeText("Back", 590, 660, 40, sf::Color::White, all_text[BACK2]);
+  MakeText(textInfo, sf::Color::White, all_text[BACK2]);
 
   //Check if mouse intersects anything
   UpdateHover(L0, BACK2, mouse_x, mouse_y);
@@ -101,14 +150,31 @@ void Overlays::UpdateLevels(float mouse_x, float mouse_y) {
 
 void Overlays::UpdatePaused(float mouse_x, float mouse_y) {
   //Update text boxes
-  MakeText("Paused", 540, 288, 54, sf::Color::White, all_text[PAUSED]);
-  MakeText("Continue", 370, 356, 40, sf::Color::White, all_text[CONTINUE]);
-  MakeText("Restart", 620, 356, 40, sf::Color::White, all_text[RESTART]);
-  MakeText("Quit", 845, 356, 40, sf::Color::White, all_text[QUIT]);
+  struct TextCharacteristics textInfo;
+  textInfo.str = "Paused";
+  textInfo.x = 540;
+  textInfo.y = 288;
+  textInfo.size = 54;
+  textInfo.mono = false;
+  MakeText(textInfo, sf::Color::White, all_text[PAUSED]);
+  textInfo.str = "Continue";
+  textInfo.x = 370;
+  textInfo.y = 356;
+  MakeText(textInfo, sf::Color::White, all_text[CONTINUE]);
+  textInfo.str = "Restart";
+  textInfo.x = 620;
+  MakeText(textInfo, sf::Color::White, all_text[RESTART]);
+  textInfo.str = "Quit";
+  textInfo.x = 845;
+  MakeText(textInfo, sf::Color::White, all_text[QUIT]);
 
   //Update music setting
   const char* music_txt = (music_on ? "Music:  On" : "Music:  Off");
-  MakeText(music_txt, 410, 500, 40, sf::Color::White, all_text[MUSIC]);
+  textInfo.str = music_txt;
+  textInfo.x = 410;
+  textInfo.y = 500;
+  textInfo.size = 40;
+  MakeText(textInfo, sf::Color::White, all_text[MUSIC]);
 
   //Update mouse sensitivity setting
   const char* mouse_txt = "Mouse Sensitivity:  High";
@@ -117,7 +183,10 @@ void Overlays::UpdatePaused(float mouse_x, float mouse_y) {
   } else if (mouse_setting == 2) {
     mouse_txt = "Mouse Sensitivity:  Low";
   }
-  MakeText(mouse_txt, 410, 550, 40, sf::Color::White, all_text[MOUSE]);
+  textInfo.str = mouse_txt;
+  textInfo.x = 410;
+  textInfo.y = 550;
+  MakeText(textInfo, sf::Color::White, all_text[MOUSE]);
 
   //Check if mouse intersects anything
   UpdateHover(CONTINUE, MOUSE, mouse_x, mouse_y);
@@ -137,20 +206,27 @@ void Overlays::DrawControls(sf::RenderWindow& window) {
 
 void Overlays::DrawTimer(sf::RenderWindow& window, int t, bool is_high_score) {
   sf::Text text;
+  struct TextCharacteristics textInfo;
+  textInfo.x = 640;
+  textInfo.y = 50;
+  textInfo.size = 140;
+  textInfo.mono = false;
   if (t < 0) {
     return;
   } else if (t < 3*60) {
     //Create text for the number
     char txt[] = "0";
     txt[0] = '3' - (t / 60);
-    MakeText(txt, 640, 50, 140, sf::Color::White, text);
+	textInfo.str = txt;
+    MakeText(textInfo, sf::Color::White, text);
 
     //Play count sound if needed
     if (t % 60 == 0) {
       sound_count.play();
     }
   } else if (t < 4*60) {
-    MakeText("GO!", 640, 50, 140, sf::Color::White, text);
+    textInfo.str = "GO!";
+    MakeText(textInfo, sf::Color::White, text);
 
     //Play go sound if needed
     if (t == 3*60) {
@@ -183,7 +259,13 @@ void Overlays::DrawTimer(sf::RenderWindow& window, int t, bool is_high_score) {
 
 void Overlays::DrawLevelDesc(sf::RenderWindow& window, int level) {
   sf::Text text;
-  MakeText(all_levels[level].txt, 640, 60, 48, sf::Color::White, text);
+  struct TextCharacteristics textInfo;
+  textInfo.str = all_levels[level].txt;
+  textInfo.x = 640;
+  textInfo.y = 60;
+  textInfo.size = 48;
+  textInfo.mono = false;
+  MakeText(textInfo, sf::Color::White, text);
   const sf::FloatRect text_bounds = text.getLocalBounds();
   text.setOrigin(text_bounds.width / 2, text_bounds.height / 2);
   window.draw(text);
@@ -193,7 +275,13 @@ void Overlays::DrawFPS(sf::RenderWindow& window, int fps) {
   sf::Text text;
   std::string fps_str = std::to_string(fps) + "fps";
   const sf::Color col = (fps < 50 ? sf::Color::Red : sf::Color::White);
-  MakeText(fps_str.c_str(), 1280, 720, 24, col, text, false);
+  struct TextCharacteristics textInfo;
+  textInfo.str = fps_str.c_str();
+  textInfo.x = 1280;
+  textInfo.y = 720;
+  textInfo.size = 24;
+  textInfo.mono = false;
+  MakeText(textInfo, col, text);
   const sf::FloatRect text_bounds = text.getLocalBounds();
   text.setOrigin(text_bounds.width, text_bounds.height);
   window.draw(text);
@@ -209,6 +297,7 @@ void Overlays::DrawArrow(sf::RenderWindow& window, const sf::Vector3f& v3) {
   const float x_scale = 250.0f * v3.y + 520.0f * (1.0f - v3.y);
   const float x = 640.0f + x_scale * std::cos(v3.x);
   const float y = 360.0f + 250.0f * std::sin(v3.x);
+  float pi = 3.14159265359f;
   const sf::Uint8 alpha = sf::Uint8(102.0f * std::max(0.0f, std::min(1.0f, (v3.z - 5.0f) / 30.0f)));
   if (alpha > 0) {
     arrow_spr.setScale(draw_scale * 0.1f, draw_scale * 0.1f);
@@ -228,7 +317,13 @@ void Overlays::DrawCredits(sf::RenderWindow& window) {
     "YouTube channel \"CodeParade\".\n\n"
     "Thanks for playing!";
   sf::Text text;
-  MakeText(txt, 50, 100, 44, sf::Color::White, text);
+  struct TextCharacteristics textInfo;
+  textInfo.str = txt;
+  textInfo.x = 50;
+  textInfo.y = 100;
+  textInfo.size = 44;
+  textInfo.mono = false;
+  MakeText(textInfo, sf::Color::White, text);
   text.setLineSpacing(1.3f);
   window.draw(text);
 }
@@ -255,12 +350,12 @@ bool* Overlays::getAllHover()
 	return all_hover;
 }
 
-void Overlays::MakeText(const char* str, float x, float y, float size, const sf::Color& color, sf::Text& text, bool mono) {
-  text.setString(str);
-  text.setFont(mono ? *font_mono : *font);
-  text.setCharacterSize(int(size * draw_scale));
+void Overlays::MakeText(TextCharacteristics textInfo, sf::Color color, sf::Text& text) {
+  text.setString(textInfo.str);
+  text.setFont(textInfo.mono ? *font_mono : *font);
+  text.setCharacterSize(int(textInfo.size * draw_scale));
   text.setLetterSpacing(0.8f);
-  text.setPosition((x - 2.0f) * draw_scale, (y - 2.0f) * draw_scale);
+  text.setPosition((textInfo.x - 2.0f) * draw_scale, (textInfo.y - 2.0f) * draw_scale);
   text.setFillColor(color);
   text.setOutlineThickness(3.0f * draw_scale);
   text.setOutlineColor(sf::Color::Black);
@@ -268,6 +363,11 @@ void Overlays::MakeText(const char* str, float x, float y, float size, const sf:
 
 void Overlays::MakeTime(int t, float x, float y, float size, const sf::Color& color, sf::Text& text) {
   //Create timer text
+  struct TextCharacteristics textInfo;
+  textInfo.x = x;
+  textInfo.y = y;
+  textInfo.size = size;
+  textInfo.mono = true;
   char txt[] = "00:00:00";
   const int t_all = std::min(t, 59 * (60 * 60 + 60 + 1));
   const int t_ms = t_all % 60;
@@ -276,7 +376,8 @@ void Overlays::MakeTime(int t, float x, float y, float size, const sf::Color& co
   txt[0] = '0' + t_min / 10; txt[1] = '0' + t_min % 10;
   txt[3] = '0' + t_sec / 10; txt[4] = '0' + t_sec % 10;
   txt[6] = '0' + t_ms / 10;  txt[7] = '0' + t_ms % 10;
-  MakeText(txt, x, y, size, color, text, true);
+  textInfo.str = txt;
+  MakeText(textInfo, color, text);
 }
 
 void Overlays::UpdateHover(Texts from, Texts to, float mouse_x, float mouse_y) {

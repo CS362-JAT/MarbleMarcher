@@ -21,6 +21,14 @@
 extern int mouse_setting;
 extern bool music_on;
 
+struct TextCharacteristics {
+	const char* str;
+	float x;
+	float y;
+	float size;
+	bool mono;
+};
+
 class Overlays {
 public:
   enum Texts {
@@ -47,6 +55,7 @@ public:
     NUM_TEXTS
   };
 
+  Overlays();
   Overlays(const sf::Font* _font, const sf::Font* _font_mono);
 
   //Relative to 1280x720
@@ -72,7 +81,7 @@ public:
   bool* getAllHover();
 
 protected:
-  void MakeText(const char* str, float x, float y, float size, const sf::Color& color, sf::Text& text, bool mono=false);
+  void MakeText(TextCharacteristics textInfo, sf::Color color, sf::Text& text);
   void MakeTime(int t, float x, float y, float size, const sf::Color& color, sf::Text& text);
   void UpdateHover(Texts from, Texts to, float mouse_x, float mouse_y);
 
